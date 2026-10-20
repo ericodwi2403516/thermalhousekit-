@@ -1,0 +1,88 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <DHT.h>
+#include <Adafruit_BMP280.h>
+// --- Konfigurasi OLED ---
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+// --- Konfigurasi DHT22 ---
+#define DHTPIN 4
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+// --- Konfigurasi BMP280 (HW-611) ---
+Adafruit_BMP280 bmp; // I2C
+void setup() {
+ Serial.begin(115200);
+ Serial.println(F("Starting..."));
+ // Inisialisasi DHT22
+ dht.begin();
+ // Inisialisasi OLED
+ if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+ Serial.println(F("SSD1306 allocation failed"));
+ for(;;);
+ }
+ display.clearDisplay();
+ display.setTextColor(SSD1306_WHITE);
+ // Inisialisasi BMP280 (HW-611)
+ if (!bmp.begin(0x76)) {
+ Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
+ }
+}
+void loop() {
+ // Baca DHT22
+ float humidity = dht.readHumidity();
+ float tempDHT = dht.readTemperature();
+ // Baca BMP280
+ float pressure = bmp.readPressure() / 100.0F; // Konversi Pa ke hPa
+ float tempBMP = bmp.readTemperature(); // Suhu dari BMP280
+ // Cek jika pembacaan DHT gagal
+ if (isnan(humidity) || isnan(tempDHT)) {
+ Serial.println(F("Failed to read from DHT sensor!"));
+ }
+ // --- Tampilan OLED ---
+ display.clearDisplay();
+ display.setTextSize(1);
+ display.setCursor(0, 0);
+ display.println(F("Thermal House"));
+ display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+ // Suhu A (DHT22)
+ display.setCursor(0, 14);
+ display.print(F("Suhu A: "));
+ if (isnan(tempDHT)) { display.println(F("Gagal"));
+ } else {
+ display.print(tempDHT, 1);
+ display.println(F(" C"));
+ }
+ // Suhu B (BMP280)
+ display.setCursor(0, 26);
+ display.print(F("Suhu B: "));
+ if (isnan(tempBMP)) {
+ display.println(F("Gagal"));
+ } else {
+ display.print(tempBMP, 1);
+ display.println(F(" C"));
+ }
+ // Kelembapan (DHT22)
+ display.setCursor(0, 38);
+ display.print(F("Lembap: "));
+ if (isnan(humidity)) {
+ display.println(F("Gagal"));
+ } else {
+ display.print(humidity, 1);
+ display.println(F(" %"));
+ }
+ // Tekanan (BMP280)
+ display.setCursor(0, 50);
+ display.print(F("Tekanan: "));
+ if (pressure > 0 && pressure < 2000) {
+ display.print(pressure, 1);
+ display.println(F(" hPa"));
+ } else {
+ display.println(F("Error"));
+ }
+ display.display();
+ delay(2000);
+}
